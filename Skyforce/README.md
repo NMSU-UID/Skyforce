@@ -1,2 +1,0 @@
-# Skyforce
-A team repository
