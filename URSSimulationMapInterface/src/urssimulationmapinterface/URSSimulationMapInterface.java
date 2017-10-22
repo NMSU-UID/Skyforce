@@ -416,6 +416,12 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 
 		}
 		});
+		
+		//....Protocol Buffer Starts...........//
+		ProtocolBufferDemo objprotobufdemo= new ProtocolBufferDemo ();
+		objprotobufdemo.Demo(); //....Calling the Function....//
+		
+		
   }//...End of Main Function...//
 
 }//....End of URSSimulationMapInterface Class....//
