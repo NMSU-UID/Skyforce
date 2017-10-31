@@ -47,6 +47,10 @@ import java.util.List;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.net.InetAddress;
+import java.net.Socket;
+
 import pb_wearable.Wearable.GetStatus;
 import pb_wearable.Wearable.GetStatus.Builder;
 import pb_wearable.Wearable.Status;
@@ -150,15 +154,28 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 			endButton.setEnabled(false);
 			
 			sendButton = new JButton ("Send");
+			
+			//.....Connects to the exec_monitor.....//
 			sendButton.addActionListener( new ActionListener()
 			{		
 				 public void actionPerformed(ActionEvent actionEvent)	
 				 {
-					try { 
-						
-						System.out.println("......Protocol Buffer Starts......."); 
+					 
+					 try { 
+						 
+						 InetAddress host = InetAddress.getLocalHost();
+					     Socket socket = null;
+					     ObjectOutputStream oos = null;
+					     
+					     //.....Connecting with the Server........//
+					     socket = new Socket(host.getHostName(),8080);
+					     oos = new ObjectOutputStream(socket.getOutputStream());
+					     
+					    System.out.println("......Communication Starts......."); 
+					    
+						//System.out.println("......Protocol Buffer Starts......."); 
 						//....Message for Drone ID........//
-					    FileOutputStream output = new FileOutputStream("URS_Wearable.txt"); 
+					    //FileOutputStream output = new FileOutputStream("URS_Wearable.txt"); 
 						Builder droneidbuild = pb_wearable.Wearable.GetStatus.newBuilder();
 						
 						for (Integer elementid : droneid) {
@@ -166,17 +183,41 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 							 droneidbuild.setUavId(elementid);
 							//.....Object Build for Drone ID...//
 							 GetStatus objdroneid = droneidbuild.build();
-							 objdroneid.writeTo(output);
+							 //objdroneid.writeTo(output);
+							 String[] requiredpartid=objdroneid.toString().split(":");
+							 
+							 int value= Integer.parseInt(requiredpartid[1].trim()); 
+							 
+							 //oos.write(value);
+							 
+							 oos.writeByte(value);
+							 
+							 System.out.println(value);
+							 
+							 //oos.writeObject(objdroneid);
+							
+							 //System.out.println(Integer.parseInt(requiredpartid[1]));
 							 
 							}
-						 
+											 
 					//....Message for Latitude..........//
 				   //.... Writing into the File..............................//
 						
 					    for (Double elementlat : dronelatitude) {
 							
 					    	Status objlatStatus= pb_wearable.Wearable.Status.newBuilder().setX(elementlat).build();
-					    	objlatStatus.writeTo(output);
+					    	//objlatStatus.writeTo(output);
+					    	String[] requiredpartlat=objlatStatus.toString().split(":");
+					    	
+					    	Double value=Double.parseDouble(requiredpartlat[1]);
+					    	
+					    	oos.writeBytes(value.toString());
+					    	
+					    	//oos.writeDouble(Double.parseDouble(requiredpartlat[1]));
+					    	
+					    	//oos.writeObject(objlatStatus);
+					    	
+					    	System.out.println(Double.parseDouble(requiredpartlat[1]));
 						 }
 					    
 				 //....Message for Longitude..........//
@@ -185,7 +226,19 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 					    for (Double elementlon : dronelongitude) {
 							
 					    	Status objlonStatus= pb_wearable.Wearable.Status.newBuilder().setY(elementlon).build();
-					    	objlonStatus.writeTo(output);
+					    	//objlonStatus.writeTo(output);
+					    	String[] requiredpartlon=objlonStatus.toString().split(":");
+					    	
+							Double value=Double.parseDouble(requiredpartlon[1]);
+					    	
+					    	oos.writeBytes(value.toString());
+					    	
+					    	
+					    	//oos.writeDouble(Double.parseDouble(requiredpartlon[1]));
+					    	
+					    	//oos.writeObject(objlonStatus);
+					    	
+					    	System.out.println(Double.parseDouble(requiredpartlon[1]));
 						 }
 							    
 			    //....Message for Elevation..........//
@@ -194,22 +247,37 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 					    for (Double elementele : droneelevation) {
 							
 					    	Status objeleStatus= pb_wearable.Wearable.Status.newBuilder().setZ(elementele).build();
-					    	objeleStatus.writeTo(output);
+					    	//objeleStatus.writeTo(output);
+					    	String[] requiredpartele=objeleStatus.toString().split(":");
+					    	
+		                    Double value=Double.parseDouble(requiredpartele[1]);
+					    	
+					    	oos.writeBytes(value.toString());
+					    	
+					    	
+					    	//oos.writeDouble(Double.parseDouble(requiredpartele[1]));
+					    	
+					    	//oos.writeObject(objeleStatus);
+					    	
+					    	System.out.println(Double.parseDouble(requiredpartele[1]));
 						 }
 					    
+					
+					    socket.close(); //....Closing the Socket....//
 					    
-					    
-					    output.close();
+					    //output.close();
 					    
 					 //.... Reading from the File..............................//
-				     GetStatus showgetstatus = GetStatus.parseFrom(new FileInputStream("URS_Wearable.txt"));  
+				     /*GetStatus showgetstatus = GetStatus.parseFrom(new FileInputStream("URS_Wearable.txt"));  
 				     System.out.println(showgetstatus);
 				     
 				     Status showstatus = Status.parseFrom(new FileInputStream("URS_Wearable.txt"));  
 				     System.out.println(showstatus);
 				     
 				     JOptionPane.showMessageDialog(null,"A Text File has been Created...!!!","Message", JOptionPane.INFORMATION_MESSAGE);
-					 System.out.println("......Protocol Buffer Ends.......");	    
+					 System.out.println("......Protocol Buffer Ends.......");*/	    
+					    
+					 System.out.println("......Communication Ends......."); 
 				
 					}
 					
