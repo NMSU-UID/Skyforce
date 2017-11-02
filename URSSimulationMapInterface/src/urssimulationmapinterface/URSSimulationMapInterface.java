@@ -26,10 +26,13 @@ import gov.nasa.worldwindx.examples.LineBuilder;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.TitledBorder;
+import javax.swing.text.html.parser.ParserDelegator;
+
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Cursor;
@@ -42,6 +45,25 @@ import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import gov.nasa.worldwind.layers.RenderableLayer;
+import java.util.List;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
+
+import pb_wearable.Wearable.GetStatus;
+import pb_wearable.Wearable.GetStatus.Builder;
+import pb_wearable.Wearable.GotoRequest;
+import pb_wearable.Wearable.GotoResponse;
+import pb_wearable.Wearable.Status;
+import pb_wearable.Wearable.WearableRequest;
+
 
 /**
  * @author Nasim
@@ -53,8 +75,21 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 	// that the main can configure system properties prior to invoking Swing. This is
 	// necessary for instance on OS X (Macs) so that the application name can be specified.
 	static boolean LBArm = false;
-
-	private static class LinePanel extends JPanel
+	
+	/*static List <Integer> droneid = new ArrayList<Integer>();
+	static List <Double> dronelatitude = new ArrayList<Double>();
+	static List <Double> dronelongitude = new ArrayList<Double>();
+	static List <Double> droneelevation = new ArrayList<Double>();*/
+	
+	static int droneid;
+	static double dronelatitude;
+	static double dronelongitude;
+	static double droneelevation;
+	
+	static InetAddress host = null;
+    static Socket socket =null;
+    
+    private static class LinePanel extends JPanel
 	{
 	/**
 		 * 
@@ -65,6 +100,7 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 		private JButton newButton;
 		private JButton pauseButton;
 		private JButton endButton;
+		private JButton sendButton;
 		private JLabel[] pointLabels;
 
 		public LinePanel(WorldWindow wwd, LineBuilder lineBuilder)
@@ -96,6 +132,7 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 					pauseButton.setText("Pause");
 					pauseButton.setEnabled(true);
 					endButton.setEnabled(true);
+					sendButton.setEnabled(true);
 					newButton.setEnabled(false);
 					((Component) wwd).setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
 				}
@@ -133,6 +170,80 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 			
 			buttonPanel.add(endButton);
 			endButton.setEnabled(false);
+			
+			sendButton = new JButton ("Send");
+			
+			//.....Connects to the exec_monitor.....//
+			sendButton.addActionListener( new ActionListener()
+      {
+        public void actionPerformed(ActionEvent actionEvent) {
+
+          try {
+           
+            OutputStream oos = socket.getOutputStream();
+
+            System.out.println("......Communication Starts.......");
+            GotoRequest.Builder objgotorequest = GotoRequest.newBuilder();
+
+            
+            System.out.println ("Drone ID:"+ droneid);
+            System.out.println ("Latitude:"+ dronelatitude);
+            System.out.println ("Lon:"+ dronelongitude);
+            System.out.println ("Ele:"+ droneelevation);
+            
+            
+//            objgotorequest.setUavId(droneid);// ...Set Drone ID...//
+//            objgotorequest.setX(dronelatitude); // ....Set Drone Latitude...//
+//            objgotorequest.setY(dronelongitude); // ....Set Drone Longitude...//
+//            objgotorequest.setZ(droneelevation); // ....Set Drone Elevation...//
+            
+            objgotorequest.setUavId(1);// ...Set Drone ID...//
+            objgotorequest.setX(2); // ....Set Drone Latitude...//
+            objgotorequest.setY(3); // ....Set Drone Longitude...//
+            objgotorequest.setZ(4); // ....Set Drone Longitude...//
+
+            System.out.println("......Sending Data.......");
+            objgotorequest.build().writeDelimitedTo(oos);
+
+            System.out.println("......Receaving Data.......");
+            InputStream ois = socket.getInputStream();
+            GotoResponse objgotoresponse = null;
+            objgotoresponse = GotoResponse.parseDelimitedFrom(ois);
+            System.out.println(objgotoresponse);
+
+            socket.close(); // ....Closing the Socket....//
+
+            // .... Reading from the File..............................//
+            /*
+             * GetStatus showgetstatus = GetStatus.parseFrom(new
+             * FileInputStream("URS_Wearable.txt"));
+             * System.out.println(showgetstatus);
+             * 
+             * Status showstatus = Status.parseFrom(new
+             * FileInputStream("URS_Wearable.txt"));
+             * System.out.println(showstatus);
+             * 
+             * JOptionPane.showMessageDialog(
+             * null,"A Text File has been Created...!!!","Message",
+             * JOptionPane.INFORMATION_MESSAGE);
+             * System.out.println("......Protocol Buffer Ends.......");
+             */
+
+            System.out.println("......Communication Ends.......");
+            
+            SocketConnection(); //....Calling the Socket Connection Method...//
+
+          }
+
+          catch (IOException e) {
+            e.printStackTrace();
+          }
+
+        }
+      });
+			
+			buttonPanel.add(sendButton);
+			sendButton.setEnabled(false);
 		
 			JPanel pointPanel = new JPanel(new GridLayout(0, 1, 0, 10));
 			pointPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
@@ -203,37 +314,37 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 		
 			// create the markers for the drones
 			ArrayList<Marker> markers = new ArrayList<Marker>();
-			Marker marker = new BasicMarker(Position.fromDegrees(lat, lon, droneElevation), attrs[0]);
-			marker.setPosition(Position.fromDegrees(lat, lon, droneElevation));
-			marker.setHeading(Angle.fromDegrees(0));
-			marker.setPitch(Angle.fromDegrees(90));
-			markers.add(marker);
-		
+//			Marker marker = new BasicMarker(Position.fromDegrees(lat, lon, droneElevation), attrs[0]);
+//			marker.setPosition(Position.fromDegrees(lat, lon, droneElevation));
+//			marker.setHeading(Angle.fromDegrees(0));
+//			marker.setPitch(Angle.fromDegrees(90));
+//			markers.add(marker);
+//		
 			// put 4 markers on the corners of the permitted region around nmsu
 			double minlat=32.284841;
 			double maxlat = 32.270353 ;
 			double minlon = -106.761522 ;
 			double maxlon = -106.736765;
-			Marker marker1 = new BasicMarker(Position.fromDegrees(minlat, minlon, droneElevation), attrs[3]);
-			marker1.setPosition(Position.fromDegrees(minlat, minlon, droneElevation));
-			marker1.setHeading(Angle.fromDegrees(0));
-			marker1.setPitch(Angle.fromDegrees(90));
-			markers.add(marker1);
-			Marker marker2 = new BasicMarker(Position.fromDegrees(minlat, maxlon, droneElevation), attrs[3]);
-			marker2.setPosition(Position.fromDegrees(minlat, maxlon, droneElevation));
-			marker2.setHeading(Angle.fromDegrees(0));
-			marker2.setPitch(Angle.fromDegrees(90));
-			markers.add(marker2);
-			Marker marker3 = new BasicMarker(Position.fromDegrees(maxlat, minlon, droneElevation), attrs[3]);
-			marker3.setPosition(Position.fromDegrees(maxlat, minlon, droneElevation));
-			marker3.setHeading(Angle.fromDegrees(0));
-			marker3.setPitch(Angle.fromDegrees(90));
-			markers.add(marker3);
-			Marker marker4 = new BasicMarker(Position.fromDegrees(maxlat, maxlon, droneElevation), attrs[3]);
-			marker4.setPosition(Position.fromDegrees(maxlat, maxlon, droneElevation));
-			marker4.setHeading(Angle.fromDegrees(0));
-			marker4.setPitch(Angle.fromDegrees(90));
-			markers.add(marker4);
+//			Marker marker1 = new BasicMarker(Position.fromDegrees(minlat, minlon, droneElevation), attrs[3]);
+//			marker1.setPosition(Position.fromDegrees(minlat, minlon, droneElevation));
+//			marker1.setHeading(Angle.fromDegrees(0));
+//			marker1.setPitch(Angle.fromDegrees(90));
+//			markers.add(marker1);
+//			Marker marker2 = new BasicMarker(Position.fromDegrees(minlat, maxlon, droneElevation), attrs[3]);
+//			marker2.setPosition(Position.fromDegrees(minlat, maxlon, droneElevation));
+//			marker2.setHeading(Angle.fromDegrees(0));
+//			marker2.setPitch(Angle.fromDegrees(90));
+//			markers.add(marker2);
+//			Marker marker3 = new BasicMarker(Position.fromDegrees(maxlat, minlon, droneElevation), attrs[3]);
+//			marker3.setPosition(Position.fromDegrees(maxlat, minlon, droneElevation));
+//			marker3.setHeading(Angle.fromDegrees(0));
+//			marker3.setPitch(Angle.fromDegrees(90));
+//			markers.add(marker3);
+//			Marker marker4 = new BasicMarker(Position.fromDegrees(maxlat, maxlon, droneElevation), attrs[3]);
+//			marker4.setPosition(Position.fromDegrees(maxlat, maxlon, droneElevation));
+//			marker4.setHeading(Angle.fromDegrees(0));
+//			marker4.setPitch(Angle.fromDegrees(90));
+//			markers.add(marker4);
 		
 			final MarkerLayer layer = new MarkerLayer();
 		
@@ -283,17 +394,44 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 						if (event.getTopPickedObject().getParentLayer() instanceof MarkerLayer)
 						{
 							PickedObject po = event.getTopPickedObject();
-							//noinspection RedundantCast
-							//System.out.printf("Track position %s, %s, size = %f\n",
-							// po.getValue(AVKey.PICKED_OBJECT_ID).toString(),
-							// po.getPosition(), (Double) po.getValue(AVKey.PICKED_OBJECT_SIZE));
-							System.out.printf("Track position %s, %s\n",
+							
+							/*int id= Integer.parseInt(po.getValue(AVKey.PICKED_OBJECT_ID).toString()); 
+							droneid.add(id); //.....Adding Drone ID...//*/
+							
+							droneid= Integer.parseInt(po.getValue(AVKey.PICKED_OBJECT_ID).toString()); 
+							
+							//System.out.println("Drone ID:"+id);
+							
+							/*double latitude = po.getPosition().getLatitude().degrees;
+							dronelatitude.add(latitude); //....Adding Drone Latitude...//*/
+							
+							dronelatitude = po.getPosition().getLatitude().degrees;
+							
+							//System.out.println("Latitude:"+latitude);
+							
+							/*double longitude = po.getPosition().getLongitude().degrees;
+							dronelongitude.add(longitude); //....Adding Drone Longitude...//*/
+							
+							dronelongitude = po.getPosition().getLongitude().degrees;
+							
+							//System.out.println("Longitude:"+longitude);
+							
+							/*double elevation = po.getPosition().getElevation();
+							droneelevation.add(elevation); //....Adding Drone Elevation...//*/
+							
+							droneelevation = po.getPosition().getElevation();
+							
+							//System.out.println("Elevation:"+elevation);
+							
+					        System.out.printf("Track position %s, %s\n",
 							po.getValue(AVKey.PICKED_OBJECT_ID).toString(),
 							po.getPosition());
 						}
 					}
-			
+					
 				}
+				
+				
 			});
 		
 			// add new pine by LEFT_CLICK
@@ -380,6 +518,9 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 			this.getContentPane().add(new LinePanel(this.getWwd(), lineBuilder), BorderLayout.EAST);
 		
 			this.enableNAIPLayer();
+			
+			SocketConnection();  //....Calling the Socket Connection Method...//
+			   
 		}
 		
 		public void enableNAIPLayer()
@@ -398,10 +539,26 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 			}
 		}
 	}
+    
+    static private void SocketConnection()
+    {
+    	try {
+			host = InetAddress.getLocalHost();
+			socket=new Socket(host.getHostName(), 8080);
+		} 
+    	
+    	catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
+    	
+    }
 
    public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		if (Configuration.isMacOS())
+	   
+	    if (Configuration.isMacOS())
 		{
 		System.setProperty("com.apple.mrj.application.apple.menu.about.name", "Hello World Wind");
 		}
@@ -416,11 +573,7 @@ public class URSSimulationMapInterface extends ApplicationTemplate{
 
 		}
 		});
-		
-		//....Protocol Buffer Starts...........//
-		ProtocolBufferDemo objprotobufdemo= new ProtocolBufferDemo ();
-		objprotobufdemo.Demo(); //....Calling the Function....//
-		
+	
 		
   }//...End of Main Function...//
 
